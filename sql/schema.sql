@@ -113,3 +113,49 @@ $$;
 
 revoke all on function public.is_completed(text) from public;
 grant execute on function public.is_completed(text) to anon, authenticated;
+
+create or replace function public.record_scan(
+  p_participant_id text,
+  p_stamp_code text,
+  p_user_agent text default null
+)
+returns table (claimed boolean, claim_sequence integer, completed boolean)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  inserted_claim integer;
+begin
+  if length(p_participant_id) not between 4 and 64
+     or p_stamp_code not in ('river','bridge','fish','island','water','goal') then
+    raise exception 'invalid scan';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext(p_participant_id));
+
+  insert into public.scan_events (participant_id, stamp_code, user_agent)
+  values (p_participant_id, p_stamp_code, left(p_user_agent, 1000));
+
+  insert into public.stamp_claims (participant_id, stamp_code, sequence)
+  select p_participant_id, p_stamp_code, count(*)::integer + 1
+  from public.stamp_claims
+  where participant_id = p_participant_id
+  on conflict (participant_id, stamp_code) do nothing
+  returning sequence into inserted_claim;
+
+  return query
+  select inserted_claim is not null,
+         coalesce(inserted_claim, (
+           select sc.sequence from public.stamp_claims sc
+           where sc.participant_id = p_participant_id
+             and sc.stamp_code = p_stamp_code
+         )),
+         (select count(distinct sc.stamp_code) = 6
+          from public.stamp_claims sc
+          where sc.participant_id = p_participant_id);
+end;
+$$;
+
+revoke all on function public.record_scan(text, text, text) from public;
+grant execute on function public.record_scan(text, text, text) to anon, authenticated;

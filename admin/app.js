@@ -6,6 +6,9 @@ async function loadDashboard(){
  participants.textContent=s.participants;completers.textContent=s.completers;totalScans.textContent=s.total_scans;
  let r=await supabase.from("v_spot_stats").select("*");if(r.error)return alert(r.error.message);
  spotBody.innerHTML=r.data.map(x=>`<tr><td>${names[x.stamp_code]||x.stamp_code}</td><td>${x.total_scans}</td><td>${x.unique_participants}</td></tr>`).join("");
+ r=await supabase.from("scan_events").select("scanned_at,participant_id,stamp_code,user_agent").order("scanned_at",{ascending:false}).limit(500);
+ if(r.error)return alert(r.error.message);
+ scanBody.innerHTML=r.data.map(x=>`<tr><td>${new Date(x.scanned_at).toLocaleString("ja-JP")}</td><td>${esc(x.participant_id)}</td><td>${names[x.stamp_code]||x.stamp_code}</td><td>${esc(x.user_agent)}</td></tr>`).join("");
  await loadRoutes();
  r=await supabase.from("survey_responses").select("*").order("submitted_at",{ascending:false});
  if(r.error)return alert(r.error.message);

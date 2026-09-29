@@ -69,45 +69,63 @@ async function saveLocalStamp(code){
   render(current);
 }
 
+function isSupabaseConfigured(){
+  const url=window.SUPABASE_URL, key=window.SUPABASE_ANON_KEY;
+  return url && !url.startsWith("YOUR_") && key && !key.startsWith("YOUR_");
+}
+
+async function recordServerScan(code){
+  const response=await fetch(`${window.SUPABASE_URL}/rest/v1/rpc/record_scan`,{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "apikey":window.SUPABASE_ANON_KEY,
+      "Authorization":`Bearer ${window.SUPABASE_ANON_KEY}`
+    },
+    body:JSON.stringify({
+      p_participant_id:participantId,
+      p_stamp_code:code,
+      p_user_agent:navigator.userAgent
+    })
+  });
+  if(!response.ok) throw new Error(await response.text());
+  const result=await response.json();
+  return result[0];
+}
+
+function showSurveyLink(){
+  const link=document.getElementById("surveyLink");
+  link.href=`survey/?participant_id=${encodeURIComponent(participantId)}`;
+  link.classList.remove("hidden");
+}
+
 async function recordStamp(code){
   if(!STAMPS[code]) { showNotice("このQRコードは登録されていません。"); return; }
 
   const current=await getLocalStamps();
-  if(current.includes(code)){
-    showNotice("このスタンプは取得済みです。");
-    return;
-  }
+  const alreadyClaimed=current.includes(code);
 
   // Supabase設定前でもデモできるよう、ローカル保存を先に行います。
   await saveLocalStamp(code);
 
-  const url=window.SUPABASE_URL, key=window.SUPABASE_ANON_KEY;
-  if(!url || url.startsWith("YOUR_") || !key || key.startsWith("YOUR_")){
-    showNotice("スタンプを取得しました。現在はデモモードです。");
+  if(!isSupabaseConfigured()){
+    showNotice(alreadyClaimed ? "このスタンプは取得済みです。" : "スタンプを取得しました。現在はデモモードです。");
     return;
   }
 
-  const response=await fetch(`${url}/rest/v1/stamp_events`,{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "apikey":key,
-      "Authorization":`Bearer ${key}`,
-      "Prefer":"return=minimal"
-    },
-    body:JSON.stringify({
-      participant_id:participantId,
-      stamp_code:code,
-      sequence:current.length+1,
-      user_agent:navigator.userAgent
-    })
-  });
-
-  if(!response.ok){
-    console.error(await response.text());
+  try{
+    const result=await recordServerScan(code);
+    if(result.completed){
+      showSurveyLink();
+      showNotice("コンプリートしました。アンケートにご協力ください。");
+    } else if(result.claimed){
+      showNotice(`${STAMPS[code].name}を記録しました。`);
+    } else {
+      showNotice("このスタンプは取得済みです。読み取り履歴は記録しました。");
+    }
+  } catch(error){
+    console.error(error);
     showNotice("端末には保存しましたが、サーバーへの記録に失敗しました。");
-  } else {
-    showNotice(`${STAMPS[code].name}を記録しました。`);
   }
 }
 
