@@ -1,7 +1,7 @@
 QRコードURL一覧（公開URL設定後にドメイン部分を置換）
-https://YOUR-SITE/index.html?stamp=river
-https://YOUR-SITE/index.html?stamp=bridge
-https://YOUR-SITE/index.html?stamp=fish
-https://YOUR-SITE/index.html?stamp=island
-https://YOUR-SITE/index.html?stamp=water
-https://YOUR-SITE/index.html?stamp=goal
+https://koeisuzuki.github.io/Chiyodake/?stamp=river
+https://koeisuzuki.github.io/Chiyodake/?stamp=bridge
+https://koeisuzuki.github.io/Chiyodake/?stamp=fish
+https://koeisuzuki.github.io/Chiyodake/?stamp=island
+https://koeisuzuki.github.io/Chiyodake/?stamp=water
+https://koeisuzuki.github.io/Chiyodake/?stamp=goal
