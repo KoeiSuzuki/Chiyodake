@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>みんなで川をつくろう｜デジタルスタンプラリー</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero">
+  <p class="eyebrow">IWAMOTOCHO CULVERT PROJECT</p>
+  <h1>みんなで川をつくろう</h1>
+  <p>QRコードを見つけて、暗渠の「川」を完成させよう。</p>
+</header>
+
+<main class="container">
+  <section class="card">
+    <div class="status-row">
+      <span>参加者ID</span>
+      <code id="participantId">読み込み中…</code>
+    </div>
+    <p class="small">このIDは端末ごとに自動発行されます。名前は収集しません。</p>
+  </section>
+
+  <section class="card">
+    <div class="progress-head">
+      <h2>スタンプ</h2>
+      <strong><span id="count">0</span>/<span id="total">6</span></strong>
+    </div>
+    <div id="stamps" class="stamps"></div>
+  </section>
+
+  <section class="card river-card">
+    <h2>みんなでつくる川</h2>
+    <div id="river" class="river" aria-label="取得したスタンプに応じて川の要素が増えます"></div>
+    <p id="riverMessage">QRコードを読み取って、川をつくろう。</p>
+  </section>
+
+  <section id="notice" class="notice hidden"></section>
+</main>
+
+<footer>Digital Stamp Rally Prototype</footer>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
