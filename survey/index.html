@@ -1,0 +1,11 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>スタンプラリー アンケート</title><link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="../js/config.js"></script></head><body>
+<main class="container"><h1>スタンプラリー アンケート</h1><p>コンプリートありがとうございます！</p>
+<form id="surveyForm"><label>参加者ID<input id="participantId" required></label>
+<label>満足度（1〜5）<select id="satisfaction" required><option value="">選択してください</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label>
+<label>印象に残ったスポット<select id="memorableSpot"><option value="">選択してください</option><option value="river">川の入口</option><option value="bridge">橋</option><option value="fish">魚</option><option value="island">島</option><option value="water">水辺</option><option value="goal">ゴール</option></select></label>
+<label>自由記述<textarea id="comment" rows="5"></textarea></label>
+<h2>景品発送情報</h2><label>氏名<input id="name" required></label><label>郵便番号<input id="postal" required></label><label>住所<input id="address" required></label><label>電話番号<input id="phone" required></label>
+<label class="check"><input id="consent" type="checkbox" required> アンケート回答および景品発送のために上記情報を利用することに同意します。</label>
+<button type="submit">送信する</button></form><p id="message"></p></main><script src="app.js"></script></body></html>
