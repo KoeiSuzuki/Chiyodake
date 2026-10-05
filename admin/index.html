@@ -1,24 +1,25 @@
 <!doctype html><html lang="ja"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
 <title>QRスタンプラリー 管理画面</title>
 <link rel="stylesheet" href="style.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script src="../js/config.js"></script></head><body>
 <main class="container"><h1>QRスタンプラリー 管理画面</h1>
-<p>管理者用。Supabase Authでログインしたユーザーだけがデータを閲覧できます。</p>
+<p>管理者用。Supabase Authでログインし、管理者として登録されたユーザーだけがデータを閲覧できます。</p>
 <section id="login"><h2>管理者ログイン</h2>
-<input id="email" type="email" placeholder="メールアドレス">
-<input id="password" type="password" placeholder="パスワード">
-<button id="loginBtn">ログイン</button><p id="loginMsg"></p></section>
+<form id="loginForm"><input id="email" type="email" placeholder="メールアドレス" autocomplete="username" required>
+<input id="password" type="password" placeholder="パスワード" autocomplete="current-password" required>
+<button id="loginBtn">ログイン</button></form><p id="loginMsg"></p></section>
 <section id="dashboard" hidden><div class="toolbar">
-<button id="refreshBtn">更新</button><button id="logoutBtn">ログアウト</button>
-<button id="csvSurveyBtn">景品発送CSV</button></div>
+<button id="refreshBtn">更新</button><button id="csvShippingBtn">景品発送CSV</button><button id="csvSurveyBtn">アンケートCSV</button>
+<button id="logoutBtn" class="secondary">ログアウト</button></div><p id="status"></p>
 <div class="cards"><div class="card"><span>参加者数</span><strong id="participants">-</strong></div>
 <div class="card"><span>クリア人数</span><strong id="completers">-</strong></div>
 <div class="card"><span>総スキャン数</span><strong id="totalScans">-</strong></div></div>
-<h2>スポット別</h2><table><thead><tr><th>スポット</th><th>総読み込み</th><th>ユニーク参加者</th></tr></thead><tbody id="spotBody"></tbody></table>
-<h2>QR読み込み履歴</h2><table><thead><tr><th>読み込み日時</th><th>参加者ID</th><th>スポット</th><th>ブラウザ</th></tr></thead><tbody id="scanBody"></tbody></table>
-<h2>参加者ルート</h2><input id="participantSearch" placeholder="参加者IDで検索">
-<table><thead><tr><th>参加者ID</th><th>順番</th><th>スポット</th><th>初回取得時刻</th></tr></thead><tbody id="routeBody"></tbody></table>
-<h2>アンケート・景品発送</h2><table><thead><tr><th>送信日時</th><th>氏名</th><th>郵便番号</th><th>住所</th><th>電話</th><th>満足度</th><th>コメント</th></tr></thead><tbody id="surveyBody"></tbody></table>
+<h2>スポット別</h2><div class="table-wrap"><table><thead><tr><th>スポット</th><th>総読み込み</th><th>ユニーク参加者</th></tr></thead><tbody id="spotBody"></tbody></table></div>
+<h2>参加者ルート</h2><input id="participantSearch" placeholder="参加者IDで検索（部分一致）">
+<div class="table-wrap"><table><thead><tr><th>参加者ID</th><th>取得数</th><th>ルート（順番・初回取得時刻）</th><th>開始</th><th>最終取得</th></tr></thead><tbody id="routeBody"></tbody></table></div>
+<h2>QR読み込み履歴</h2><div class="table-wrap"><table><thead><tr><th>読み込み日時</th><th>参加者ID</th><th>スポット</th><th>ブラウザ</th></tr></thead><tbody id="scanBody"></tbody></table></div>
+<button id="moreScansBtn" class="secondary" hidden>さらに読み込む</button>
+<h2>アンケート・景品発送</h2><div class="table-wrap"><table><thead><tr><th>送信日時</th><th>参加者ID</th><th>満足度</th><th>印象に残ったスポット</th><th>自由記述</th><th>景品</th><th>氏名</th><th>郵便番号</th><th>住所</th><th>電話</th></tr></thead><tbody id="surveyBody"></tbody></table></div>
 </section></main><script src="app.js"></script></body></html>
