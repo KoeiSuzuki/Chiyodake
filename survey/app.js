@@ -13,6 +13,10 @@ const phone=document.getElementById("phone");
 const consent=document.getElementById("consent");
 const submitBtn=document.getElementById("submitBtn");
 const message=document.getElementById("message");
+const privacyDialog=document.getElementById("privacyDialog");
+const privacyContent=document.getElementById("privacyContent");
+const PRIVACY_URL="privacy.html";
+let privacyVersion=null;
 
 // CDN版supabase-jsがグローバル変数 supabase を定義するため、別名で作成します。
 const db=window.supabase.createClient(window.SUPABASE_URL,window.SUPABASE_ANON_KEY,{
@@ -33,7 +37,8 @@ const RESULT_MESSAGES={
 	invalid_postal:"郵便番号を7桁の数字で入力してください。",
 	invalid_address:"住所を300文字以内で入力してください。",
 	invalid_phone:"電話番号を10〜11桁の数字で入力してください。",
-	invalid_consent:"景品発送のための情報利用への同意が必要です。"
+	invalid_consent:"プライバシー規約への同意が必要です。",
+	invalid_workshop:"ワークショップへの参加について選択してください。"
 };
 
 function block(text){
@@ -61,6 +66,28 @@ prizeRequested.onchange=()=>{
 	shipping.hidden=shipping.disabled=!prizeRequested.checked;
 };
 
+// プライバシー規約：privacy.html の本文をモーダルで表示します（入力中の内容はそのまま残ります）。
+async function loadPrivacy(){
+	try{
+		const response=await fetch(PRIVACY_URL,{cache:"no-cache"});
+		if(!response.ok) throw new Error(`HTTP ${response.status}`);
+		const doc=new DOMParser().parseFromString(await response.text(),"text/html");
+		const policy=doc.getElementById("policy");
+		privacyVersion=policy.dataset.version||null;
+		privacyContent.replaceChildren(...[...policy.childNodes].map(n=>document.importNode(n,true)));
+	}catch(error){
+		console.error(error);
+		privacyContent.innerHTML=`<p>規約を読み込めませんでした。<a href="${PRIVACY_URL}" target="_blank" rel="noopener">別のタブで開く</a></p>`;
+	}
+}
+document.querySelectorAll("[data-open-privacy]").forEach(button=>button.onclick=()=>{
+	if(typeof privacyDialog.showModal!=="function") return window.open(PRIVACY_URL,"_blank","noopener");
+	privacyDialog.showModal();
+	privacyContent.scrollTop=0;
+});
+document.querySelectorAll("[data-close-privacy]").forEach(button=>button.onclick=()=>privacyDialog.close());
+privacyDialog.addEventListener("click",e=>{ if(e.target===privacyDialog) privacyDialog.close(); }); // 背景のタップで閉じる
+
 async function start(){
 	if(!participant) return block(RESULT_MESSAGES.invalid_participant);
 	if(localStorage.getItem(submittedKey)===participant) return block(RESULT_MESSAGES.already_submitted);
@@ -72,6 +99,7 @@ async function start(){
 	if(!completion.data) return block(RESULT_MESSAGES.not_completed+"スタンプラリーのページで取得状況をご確認ください。");
 	lead.textContent="コンプリートおめでとうございます！アンケートにご協力ください。";
 	surveyForm.hidden=false;
+	loadPrivacy();
 }
 
 surveyForm.onsubmit=async e=>{
@@ -95,7 +123,9 @@ surveyForm.onsubmit=async e=>{
 		p_postal_code:postalValue,
 		p_address:prize ? address.value.trim() : null,
 		p_phone:phoneValue,
-		p_consent:prize && consent.checked
+		p_consent:prize && consent.checked,
+		p_workshop_participation:surveyForm.elements.workshop.value||null,
+		p_privacy_version:prize ? privacyVersion : null
 	});
 	submitBtn.disabled=false;
 	submitBtn.textContent="送信する";

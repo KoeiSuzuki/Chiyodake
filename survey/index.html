@@ -1,18 +1,50 @@
 <!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>スタンプラリー アンケート</title><link rel="stylesheet" href="style.css">
+<meta name="theme-color" content="#f3f1ec">
+<title>スタンプラリー<br>
+    アンケート</title><link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script><script src="../js/config.js"></script></head><body>
-<main class="container"><h1>スタンプラリー アンケート</h1><p id="lead">コンプリート状況を確認しています…</p>
-<form id="surveyForm" hidden><label>参加者ID<input id="participantId" readonly></label>
+<main class="container">
+<header class="page-head"><p class="eyebrow">IWAMOTOCHO CULVERT PROJECT</p><h1>スタンプラリー<br>アンケート</h1><p id="lead">コンプリート状況を確認しています…</p></header>
+<form id="surveyForm" hidden>
+<section class="block">
+<label>参加者ID<input id="participantId" readonly></label>
+<fieldset class="choice"><legend>暗渠のワークショップ（ちよだ家プロジェクト）に参加しましたか？</legend>
+<label class="option"><input type="radio" name="workshop" value="attended" required><span>参加した</span></label>
+<label class="option"><input type="radio" name="workshop" value="not_attended"><span>参加していない</span></label>
+<label class="option"><input type="radio" name="workshop" value="unsure"><span>わからない／覚えていない</span></label>
+<p class="note">ワークショップに参加していない方も、このままご回答いただけます。</p>
+</fieldset>
 <label>満足度（1〜5）<select id="satisfaction" required><option value="">選択してください</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label>
 <label>印象に残ったスポット<select id="memorableSpot"><option value="">選択してください</option><option value="river">川の入口</option><option value="bridge">橋</option><option value="fish">魚</option><option value="island">島</option><option value="water">水辺</option><option value="goal">ゴール</option></select></label>
-<label>自由記述<textarea id="comment" rows="5" maxlength="2000"></textarea></label>
+<label>自由記述<textarea id="comment" rows="5" maxlength="2000"></textarea><span class="hint">氏名や住所など、個人を特定できる情報は書かないでください。</span></label>
+</section>
+<section class="block">
 <label class="check prize"><input id="prizeRequested" type="checkbox"> 景品を希望する</label>
-<p class="note">希望する場合は、発送先の入力が必要です。希望しない場合、氏名・住所などの個人情報はお預かりしません。</p>
+<p class="note">希望する場合は、発送先の入力と、個人情報の取り扱いへの同意が必要です。希望しない場合、氏名・住所などの個人情報はお預かりしません。</p>
 <fieldset id="shipping" hidden disabled><legend>景品発送情報</legend>
+<div class="privacy-summary">
+<p class="ps-title">個人情報の取り扱い（要点）</p>
+<dl>
+<dt>運営者</dt><dd><mark class="todo">【要確認：運営者側で正式情報を入力】</mark></dd>
+<dt>収集する情報</dt><dd>氏名・郵便番号・住所・電話番号</dd>
+<dt>利用目的</dt><dd>景品の発送のため</dd>
+<dt>閲覧できる人</dt><dd>運営の担当者のみ（他の参加者や一般の方は閲覧できません）</dd>
+<dt>保管期間</dt><dd><mark class="todo">【要確認：運営者側で正式情報を入力】</mark></dd>
+</dl>
+<button type="button" class="text-button" data-open-privacy>プライバシー規約の全文を読む</button>
+</div>
 <label>氏名<input id="name" required maxlength="100" autocomplete="name"></label>
 <label>郵便番号<input id="postal" required inputmode="numeric" autocomplete="postal-code" placeholder="例：101-0032"></label>
 <label>住所<input id="address" required maxlength="300" autocomplete="street-address"></label>
 <label>電話番号<input id="phone" type="tel" required autocomplete="tel" placeholder="例：090-1234-5678"></label>
-<label class="check"><input id="consent" type="checkbox" required> 景品発送のために上記の情報を利用することに同意します。</label></fieldset>
+<label class="check consent"><input id="consent" type="checkbox" required> <span><button type="button" class="inline-link" data-open-privacy>プライバシー規約</button>を確認し、個人情報の取り扱いに同意します</span></label>
+</fieldset>
+</section>
 <button type="submit" id="submitBtn">送信する</button></form><p id="message" role="status"></p>
-<p><a href="../">スタンプラリーに戻る</a></p></main><script src="app.js"></script></body></html>
+<p class="back"><a href="../">スタンプラリーに戻る</a></p></main>
+<dialog id="privacyDialog" aria-labelledby="privacyDialogTitle">
+<div class="dialog-head"><p id="privacyDialogTitle">プライバシー規約</p><button type="button" class="dialog-close" data-close-privacy aria-label="閉じる">×</button></div>
+<div id="privacyContent" class="dialog-body policy"><p>読み込み中…</p></div>
+<div class="dialog-foot"><button type="button" data-close-privacy>閉じてアンケートに戻る</button></div>
+</dialog>
+<script src="app.js"></script></body></html>

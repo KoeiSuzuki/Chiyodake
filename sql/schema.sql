@@ -36,6 +36,32 @@ create table if not exists public.survey_responses (
   unique (completion_participant_id)
 );
 
+-- 初回取得（true）と再スキャン（false）を区別する
+alter table public.scan_events add column if not exists is_first_claim boolean;
+
+-- 列追加前の行は、参加者×スタンプごとの最初の読み取りを初回取得とみなして埋める
+update public.scan_events e
+set is_first_claim = (e.id = f.first_id)
+from (
+  select participant_id, stamp_code, min(id) as first_id
+  from public.scan_events
+  group by participant_id, stamp_code
+) f
+where e.is_first_claim is null
+  and e.participant_id = f.participant_id
+  and e.stamp_code = f.stamp_code;
+
+-- アンケート：暗渠ワークショップ（ちよだ家プロジェクト）への参加有無
+alter table public.survey_responses add column if not exists workshop_participation text;
+alter table public.survey_responses drop constraint if exists survey_workshop_participation_check;
+alter table public.survey_responses add constraint survey_workshop_participation_check check (
+  workshop_participation is null
+  or workshop_participation in ('attended', 'not_attended', 'unsure')
+);
+
+-- 同意したプライバシー規約の版（survey/privacy.html の data-version）
+alter table public.survey_responses add column if not exists privacy_version text;
+
 -- 景品を希望した回答だけ、発送情報と同意を必須にする（既存行は検査しない）
 alter table public.survey_responses drop constraint if exists survey_prize_fields_check;
 alter table public.survey_responses add constraint survey_prize_fields_check check (
@@ -158,15 +184,24 @@ begin
 
   perform pg_advisory_xact_lock(hashtext(p_participant_id));
 
-  insert into public.scan_events (participant_id, stamp_code, user_agent)
-  values (p_participant_id, p_stamp_code, left(p_user_agent, 1000));
+  -- 初回取得なら stamp_claims に順番付きで保存（2回目以降は何もしない）
+  -- 取得済みかを先に確認する。6個そろった後の再スキャンで順番が7になり、
+  -- CHECK制約（1〜6）に違反して読み取り自体が保存されなくなるのを防ぐため。
+  if not exists (
+    select 1 from public.stamp_claims
+    where participant_id = p_participant_id and stamp_code = p_stamp_code
+  ) then
+    insert into public.stamp_claims (participant_id, stamp_code, sequence)
+    select p_participant_id, p_stamp_code, count(*)::integer + 1
+    from public.stamp_claims
+    where participant_id = p_participant_id
+    on conflict (participant_id, stamp_code) do nothing
+    returning sequence into inserted_claim;
+  end if;
 
-  insert into public.stamp_claims (participant_id, stamp_code, sequence)
-  select p_participant_id, p_stamp_code, count(*)::integer + 1
-  from public.stamp_claims
-  where participant_id = p_participant_id
-  on conflict (participant_id, stamp_code) do nothing
-  returning sequence into inserted_claim;
+  -- 読み取りは初回・再スキャンにかかわらず毎回保存
+  insert into public.scan_events (participant_id, stamp_code, user_agent, is_first_claim)
+  values (p_participant_id, p_stamp_code, left(p_user_agent, 1000), inserted_claim is not null);
 
   return query
   select inserted_claim is not null,
@@ -186,6 +221,9 @@ grant execute on function public.record_scan(text, text, text) to anon, authenti
 
 -- アンケート送信。6スポット制覇をサーバー側で確認してから保存する。
 -- 戻り値: 'ok' / 'already_submitted' / 'not_completed' / 'invalid_...'
+-- 引数を追加したため旧版（10引数）を削除する。旧版の呼び出し方もそのまま新版で受け付ける。
+drop function if exists public.submit_survey(text, integer, text, text, boolean, text, text, text, text, boolean);
+
 create or replace function public.submit_survey(
   p_participant_id text,
   p_satisfaction integer,
@@ -196,7 +234,9 @@ create or replace function public.submit_survey(
   p_postal_code text default null,
   p_address text default null,
   p_phone text default null,
-  p_consent boolean default false
+  p_consent boolean default false,
+  p_workshop_participation text default null,
+  p_privacy_version text default null
 )
 returns text
 language plpgsql
@@ -212,6 +252,8 @@ declare
   v_postal text := nullif(btrim(coalesce(p_postal_code, '')), '');
   v_address text := nullif(btrim(coalesce(p_address, '')), '');
   v_phone text := nullif(btrim(coalesce(p_phone, '')), '');
+  v_workshop text := nullif(btrim(coalesce(p_workshop_participation, '')), '');
+  v_privacy_version text := left(nullif(btrim(coalesce(p_privacy_version, '')), ''), 40);
 begin
   if length(v_participant) not between 4 and 64 then
     return 'invalid_participant';
@@ -228,6 +270,9 @@ begin
   if length(v_comment) > 2000 then
     return 'invalid_comment';
   end if;
+  if v_workshop is not null and v_workshop not in ('attended', 'not_attended', 'unsure') then
+    return 'invalid_workshop';
+  end if;
 
   if v_prize then
     if v_name is null or length(v_name) > 100 then return 'invalid_name'; end if;
@@ -237,15 +282,17 @@ begin
     if not coalesce(p_consent, false) then return 'invalid_consent'; end if;
   else
     -- 景品を希望しない回答では個人情報を保存しない
-    v_name := null; v_postal := null; v_address := null; v_phone := null;
+    v_name := null; v_postal := null; v_address := null; v_phone := null; v_privacy_version := null;
   end if;
 
   insert into public.survey_responses (
     completion_participant_id, satisfaction, memorable_spot, comment,
-    prize_requested, recipient_name, postal_code, address, phone, consent
+    prize_requested, recipient_name, postal_code, address, phone, consent,
+    workshop_participation, privacy_version
   ) values (
     v_participant, p_satisfaction, v_spot, v_comment,
-    v_prize, v_name, v_postal, v_address, v_phone, v_prize and coalesce(p_consent, false)
+    v_prize, v_name, v_postal, v_address, v_phone, v_prize and coalesce(p_consent, false),
+    v_workshop, v_privacy_version
   )
   on conflict (completion_participant_id) do nothing;
 
@@ -256,8 +303,175 @@ begin
 end;
 $$;
 
-revoke all on function public.submit_survey(text, integer, text, text, boolean, text, text, text, text, boolean) from public;
-grant execute on function public.submit_survey(text, integer, text, text, boolean, text, text, text, text, boolean) to anon, authenticated;
+revoke all on function public.submit_survey(text, integer, text, text, boolean, text, text, text, text, boolean, text, text) from public;
+grant execute on function public.submit_survey(text, integer, text, text, boolean, text, text, text, text, boolean, text, text) to anon, authenticated;
+
+-- ============================================================
+-- Googleスプレッドシート同期（Google Apps Script から呼び出す読み取り専用の出力）
+-- Supabaseが正本。スプレッドシートは閲覧・集計用の同期先で、ここから書き戻すことはない。
+-- ============================================================
+
+-- API（PostgREST）に公開されないスキーマ。同期トークンのハッシュだけを保存する。
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
+
+create table if not exists private.sheets_sync_tokens (
+  token_hash text primary key,
+  created_at timestamptz not null default now()
+);
+revoke all on private.sheets_sync_tokens from public, anon, authenticated;
+
+-- 同期トークンを発行する（SQL Editorから実行。表示は1回だけで、以前のトークンは無効になる）
+--   select private.issue_sheets_token();
+create or replace function private.issue_sheets_token()
+returns text
+language plpgsql
+security definer
+set search_path = private, public
+as $$
+declare
+  v_token text := replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
+begin
+  delete from private.sheets_sync_tokens where true;
+  insert into private.sheets_sync_tokens (token_hash)
+  values (encode(sha256(convert_to(v_token, 'UTF8')), 'hex'));
+  return v_token;
+end;
+$$;
+revoke all on function private.issue_sheets_token() from public, anon, authenticated;
+
+-- 同期用データを1回のJSONで返す。正しい同期トークンがないと何も返さない。
+-- p_include_shipping = true のときだけ、景品発送情報（個人情報）を含める。
+create or replace function public.sheets_export(p_token text, p_include_shipping boolean default false)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+begin
+  if p_token is null or not exists (
+    select 1 from private.sheets_sync_tokens
+    where token_hash = encode(sha256(convert_to(p_token, 'UTF8')), 'hex')
+  ) then
+    raise exception 'invalid sync token' using errcode = '42501';
+  end if;
+
+  return (
+    with spots (stamp_code, stamp_name, sort_order) as (
+      values ('river', '川の入口', 1), ('bridge', '橋', 2), ('fish', '魚', 3),
+             ('island', '島', 4), ('water', '水辺', 5), ('goal', 'ゴール', 6)
+    ),
+    ev as (
+      select participant_id, count(*) as total_scans,
+             min(scanned_at) as first_scan_at, max(scanned_at) as last_scan_at
+      from public.scan_events
+      group by participant_id
+    ),
+    cl as (
+      select c.participant_id, count(*) as stamps,
+             max(c.first_scanned_at) as last_claim_at,
+             max(c.first_scanned_at) filter (where c.stamp_code = 'goal') as goal_at,
+             string_agg(s.stamp_name, ' → ' order by c.sequence) as route,
+             string_agg(c.sequence || '. ' || s.stamp_name || ' '
+                        || to_char(c.first_scanned_at at time zone 'Asia/Tokyo', 'MM/DD HH24:MI'),
+                        ' / ' order by c.sequence) as route_detail
+      from public.stamp_claims c
+      join spots s using (stamp_code)
+      group by c.participant_id
+    ),
+    total as (select count(*) as n from ev)
+    select jsonb_build_object(
+      'generated_at', now(),
+      'summary', jsonb_build_object(
+        'participants', (select n from total),
+        'completers', (select count(*) from cl where stamps = 6),
+        'total_scans', (select count(*) from public.scan_events),
+        'rescans', (select count(*) from public.scan_events where is_first_claim is false),
+        'survey_responses', (select count(*) from public.survey_responses),
+        'prize_requests', (select count(*) from public.survey_responses where prize_requested)
+      ),
+      'scans', coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'scanned_at', e.scanned_at,
+          'participant_id', e.participant_id,
+          'stamp_code', e.stamp_code,
+          'stamp_name', s.stamp_name,
+          'scan_type', case when e.is_first_claim then '初回取得' when e.is_first_claim is false then '再スキャン' end,
+          'is_resend', coalesce(e.user_agent like '% [resend]', false),
+          'user_agent', e.user_agent
+        ) order by e.scanned_at, e.id)
+        from public.scan_events e
+        left join spots s using (stamp_code)
+      ), '[]'::jsonb),
+      'participants', coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'participant_id', ev.participant_id,
+          'stamps', coalesce(cl.stamps, 0),
+          'completed', coalesce(cl.stamps, 0) = 6,
+          'completed_at', case when cl.stamps = 6 then cl.last_claim_at end,
+          'goal_at', cl.goal_at,
+          'first_scan_at', ev.first_scan_at,
+          'last_scan_at', ev.last_scan_at,
+          'total_scans', ev.total_scans,
+          'route', cl.route,
+          'route_detail', cl.route_detail,
+          'survey_submitted', exists (
+            select 1 from public.survey_responses r
+            where r.completion_participant_id = ev.participant_id
+          )
+        ) order by ev.first_scan_at)
+        from ev
+        left join cl using (participant_id)
+      ), '[]'::jsonb),
+      'spots', (
+        select jsonb_agg(jsonb_build_object(
+          'stamp_code', s.stamp_code,
+          'stamp_name', s.stamp_name,
+          'total_scans', (select count(*) from public.scan_events e where e.stamp_code = s.stamp_code),
+          'unique_participants', (select count(distinct e.participant_id) from public.scan_events e where e.stamp_code = s.stamp_code),
+          'rescans', (select count(*) from public.scan_events e where e.stamp_code = s.stamp_code and e.is_first_claim is false),
+          'acquisition_rate', case when t.n > 0 then round(
+            (select count(*) from public.stamp_claims c where c.stamp_code = s.stamp_code)::numeric / t.n, 4) end
+        ) order by s.sort_order)
+        from spots s cross join total t
+      ),
+      'surveys', coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'submitted_at', r.submitted_at,
+          'participant_id', r.completion_participant_id,
+          'satisfaction', r.satisfaction,
+          'memorable_spot', s.stamp_name,
+          'comment', r.comment,
+          'workshop_participation', case r.workshop_participation
+            when 'attended' then '参加した'
+            when 'not_attended' then '参加していない'
+            when 'unsure' then 'わからない／覚えていない'
+          end,
+          'prize_requested', r.prize_requested
+        ) order by r.submitted_at, r.id)
+        from public.survey_responses r
+        left join spots s on s.stamp_code = r.memorable_spot
+      ), '[]'::jsonb),
+      'shipping', case when p_include_shipping then coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'submitted_at', r.submitted_at,
+          'participant_id', r.completion_participant_id,
+          'recipient_name', r.recipient_name,
+          'postal_code', r.postal_code,
+          'address', r.address,
+          'phone', r.phone,
+          'privacy_version', r.privacy_version
+        ) order by r.submitted_at, r.id)
+        from public.survey_responses r
+        where r.prize_requested and r.recipient_name is not null
+      ), '[]'::jsonb) end
+    )
+  );
+end;
+$$;
+
+revoke all on function public.sheets_export(text, boolean) from public, anon, authenticated;
+grant execute on function public.sheets_export(text, boolean) to anon;
 
 commit;
 
@@ -267,3 +481,6 @@ notify pgrst, 'reload schema';
 -- insert into public.admin_users (user_id)
 -- select id from auth.users where email = 'admin@example.com'
 -- on conflict do nothing;
+
+-- ▼ Googleスプレッドシート同期用トークンの発行（表示された値をApps Scriptに設定）
+-- select private.issue_sheets_token();

@@ -3,6 +3,10 @@ const $=id=>document.getElementById(id);
 const db=window.supabase.createClient(window.SUPABASE_URL,window.SUPABASE_ANON_KEY);
 const STAMP_CODES=["river","bridge","fish","island","water","goal"];
 const names={river:"川の入口",bridge:"橋",fish:"魚",island:"島",water:"水辺",goal:"ゴール"};
+const workshopLabels={attended:"参加した",not_attended:"参加していない",unsure:"わからない／覚えていない"};
+const workshopName=v=>workshopLabels[v]||"";
+// 初回取得／再スキャン（列追加前の行は空欄）。通信失敗後の再送は user_agent の末尾に [resend] が付きます。
+const scanType=x=>(x.is_first_claim===true?"初回取得":x.is_first_claim===false?"再スキャン":"")+(String(x.user_agent??"").endsWith(" [resend]")?"（再送）":"");
 const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const spotName=code=>names[code]||code||"";
 const fmt=v=>v?new Date(v).toLocaleString("ja-JP"):"";
@@ -81,10 +85,10 @@ function renderRoutes(){
 }
 
 async function loadMoreScans(){
- const {data,error}=await db.from("scan_events").select("id,scanned_at,participant_id,stamp_code,user_agent")
+ const {data,error}=await db.from("scan_events").select("id,scanned_at,participant_id,stamp_code,is_first_claim,user_agent")
   .order("scanned_at",{ascending:false}).order("id",{ascending:false}).range(scanOffset,scanOffset+SCAN_PAGE-1);
  if(error)throw error;
- $("scanBody").insertAdjacentHTML("beforeend",data.map(x=>`<tr><td>${fmt(x.scanned_at)}</td><td>${esc(x.participant_id)}</td><td>${spotName(x.stamp_code)}</td><td>${esc(x.user_agent)}</td></tr>`).join(""));
+ $("scanBody").insertAdjacentHTML("beforeend",data.map(x=>`<tr><td>${fmt(x.scanned_at)}</td><td>${esc(x.participant_id)}</td><td>${spotName(x.stamp_code)}</td><td>${scanType(x)}</td><td>${esc(x.user_agent)}</td></tr>`).join(""));
  scanOffset+=data.length;
  $("moreScansBtn").hidden=data.length<SCAN_PAGE;
 }
@@ -105,9 +109,9 @@ function formatPhone(value){
 
 function renderSurveys(rows){
  $("surveyBody").innerHTML=rows.map(x=>`<tr><td>${fmt(x.submitted_at)}</td><td>${esc(x.completion_participant_id)}</td><td>${x.satisfaction??""}</td>
-  <td>${esc(spotName(x.memorable_spot))}</td><td>${esc(x.comment)}</td><td>${x.prize_requested?"希望":"—"}</td>
+  <td>${esc(spotName(x.memorable_spot))}</td><td>${esc(x.comment)}</td><td>${workshopName(x.workshop_participation)}</td><td>${x.prize_requested?"希望":"—"}</td>
   <td>${esc(x.recipient_name)}</td><td>${esc(x.postal_code)}</td><td>${esc(x.address)}</td><td>${esc(formatPhone(x.phone))}</td></tr>`).join("")
-  ||`<tr><td colspan="10" class="muted">回答はまだありません。</td></tr>`;
+  ||`<tr><td colspan="11" class="muted">回答はまだありません。</td></tr>`;
 }
 
 function csvCell(value){
@@ -129,14 +133,14 @@ async function exportCsv(button,build){
 
 $("csvShippingBtn").onclick=()=>exportCsv($("csvShippingBtn"),async()=>{
  const rows=(await fetchSurveys()).filter(x=>x.prize_requested&&x.recipient_name).reverse();
- downloadCsv("stamp-rally-shipping.csv",["送信日時","参加者ID","氏名","郵便番号","住所","電話番号"],
-  rows.map(x=>[fmt(x.submitted_at),x.completion_participant_id,x.recipient_name,x.postal_code,x.address,formatPhone(x.phone)]));
+ downloadCsv("stamp-rally-shipping.csv",["送信日時","参加者ID","氏名","郵便番号","住所","電話番号","同意した規約の版"],
+  rows.map(x=>[fmt(x.submitted_at),x.completion_participant_id,x.recipient_name,x.postal_code,x.address,formatPhone(x.phone),x.privacy_version]));
  setStatus(`景品発送CSVを出力しました（${rows.length}件）。`);
 });
 $("csvSurveyBtn").onclick=()=>exportCsv($("csvSurveyBtn"),async()=>{
  const rows=(await fetchSurveys()).reverse();
- downloadCsv("stamp-rally-survey.csv",["送信日時","参加者ID","満足度","印象に残ったスポット","自由記述","景品希望"],
-  rows.map(x=>[fmt(x.submitted_at),x.completion_participant_id,x.satisfaction,spotName(x.memorable_spot),x.comment,x.prize_requested?"希望":"希望しない"]));
+ downloadCsv("stamp-rally-survey.csv",["送信日時","参加者ID","満足度","印象に残ったスポット","自由記述","暗渠ワークショップ参加","景品希望"],
+  rows.map(x=>[fmt(x.submitted_at),x.completion_participant_id,x.satisfaction,spotName(x.memorable_spot),x.comment,workshopName(x.workshop_participation),x.prize_requested?"希望":"希望しない"]));
  setStatus(`アンケートCSVを出力しました（${rows.length}件）。`);
 });
 
