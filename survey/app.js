@@ -44,6 +44,7 @@ const RESULT_MESSAGES={
 function block(text){
 	lead.textContent=text;
 	surveyForm.hidden=true;
+	window.scrollTo(0,0);
 }
 
 // 全角数字・ハイフンを半角にそろえます。

@@ -88,7 +88,7 @@ async function loadMoreScans(){
  const {data,error}=await db.from("scan_events").select("id,scanned_at,participant_id,stamp_code,is_first_claim,user_agent")
   .order("scanned_at",{ascending:false}).order("id",{ascending:false}).range(scanOffset,scanOffset+SCAN_PAGE-1);
  if(error)throw error;
- $("scanBody").insertAdjacentHTML("beforeend",data.map(x=>`<tr><td>${fmt(x.scanned_at)}</td><td>${esc(x.participant_id)}</td><td>${spotName(x.stamp_code)}</td><td>${scanType(x)}</td><td>${esc(x.user_agent)}</td></tr>`).join(""));
+ $("scanBody").insertAdjacentHTML("beforeend",data.map(x=>`<tr><td>${fmt(x.scanned_at)}</td><td>${esc(x.participant_id)}</td><td>${spotName(x.stamp_code)}</td><td>${scanType(x)}</td><td><span class="ua" title="${esc(x.user_agent)}">${esc(x.user_agent)}</span></td></tr>`).join(""));
  scanOffset+=data.length;
  $("moreScansBtn").hidden=data.length<SCAN_PAGE;
 }
