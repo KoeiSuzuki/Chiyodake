@@ -28,6 +28,14 @@ function showLogin(text="",isError=false){
  $("login").hidden=false;$("dashboard").hidden=true;
  $("loginMsg").textContent=text;$("loginMsg").classList.toggle("error",isError);
 }
+// ログインに失敗した原因を、利用者が見分けられるメッセージにする
+function loginErrorMessage(error){
+ const code=error?.code||"",message=String(error?.message||"");
+ if(code==="invalid_credentials")return "メールアドレスまたはパスワードが正しくありません。";
+ if(code==="email_not_confirmed")return "このメールアドレスは、まだ確認が済んでいません。Supabaseの Authentication > Users で、このユーザーの確認を済ませてください。";
+ if(error?.status===0||/fetch|network|load failed/i.test(message))return "通信できませんでした。インターネット接続を確認して、もう一度お試しください。";
+ return `ログインできませんでした：${message||"原因不明のエラー"}`;
+}
 function dbHint(error){
  const m=String(error?.message||error);
  return /admin_stats|v_admin_|prize_shipping|excluded_participants|admin_set_excluded|schema cache|does not exist/.test(m)
@@ -256,7 +264,7 @@ $("loginForm").onsubmit=async e=>{
  $("loginBtn").disabled=true;showLogin("ログインしています…");
  const r=await db.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
  $("loginBtn").disabled=false;
- if(r.error){console.error(r.error);return showLogin("メールアドレスまたはパスワードが正しくありません。",true);}
+ if(r.error){console.error(r.error);return showLogin(loginErrorMessage(r.error),true);}
  $("password").value="";
  await enter();
 };
