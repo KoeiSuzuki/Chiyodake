@@ -10,16 +10,79 @@
 <form id="loginForm"><input id="email" type="email" placeholder="メールアドレス" autocomplete="username" required>
 <input id="password" type="password" placeholder="パスワード" autocomplete="current-password" required>
 <button id="loginBtn">ログイン</button></form><p id="loginMsg"></p></section>
-<section id="dashboard" hidden><div class="toolbar">
-<button id="refreshBtn">更新</button><button id="csvShippingBtn">景品発送CSV</button><button id="csvSurveyBtn">アンケートCSV</button>
-<button id="logoutBtn" class="secondary">ログアウト</button></div><p id="status"></p>
-<div class="cards"><div class="card"><span>参加者数</span><strong id="participants">-</strong></div>
-<div class="card"><span>クリア人数</span><strong id="completers">-</strong></div>
-<div class="card"><span>総スキャン数</span><strong id="totalScans">-</strong></div></div>
-<h2>スポット別</h2><div class="table-wrap"><table><thead><tr><th>スポット</th><th>総読み込み</th><th>ユニーク参加者</th></tr></thead><tbody id="spotBody"></tbody></table></div>
-<h2>参加者ルート</h2><input id="participantSearch" placeholder="参加者IDで検索（部分一致）">
-<div class="table-wrap"><table><thead><tr><th>参加者ID</th><th>取得数</th><th>ルート（順番・初回取得時刻）</th><th>開始</th><th>最終取得</th></tr></thead><tbody id="routeBody"></tbody></table></div>
-<h2>QR読み込み履歴</h2><div class="table-wrap"><table><thead><tr><th>読み込み日時</th><th>参加者ID</th><th>スポット</th><th>種別</th><th>ブラウザ</th></tr></thead><tbody id="scanBody"></tbody></table></div>
+
+<section id="dashboard" hidden>
+<div class="toolbar">
+<button id="refreshBtn">更新</button>
+<label class="toggle"><input type="checkbox" id="autoRefresh" checked> 30秒ごとに自動更新</label>
+<label class="toggle"><input type="checkbox" id="showExcluded"> 除外した参加者も表示</label>
+<button id="csvShippingBtn">景品発送CSV</button><button id="csvSurveyBtn">アンケートCSV</button>
+<button id="logoutBtn" class="secondary">ログアウト</button>
+</div>
+<p id="status"></p><p id="notice" class="notice" role="status" hidden></p>
+<p class="note">集計・CSVには、除外した参加者（テストなど）は含まれません。</p>
+
+<div class="cards">
+<div class="card"><span>参加者数</span><strong id="cParticipants">-</strong></div>
+<div class="card"><span>クリア人数</span><strong id="cCompleters">-</strong><small id="cCompleteRate"></small></div>
+<div class="card"><span>総スキャン数</span><strong id="cScans">-</strong><small id="cRescans"></small></div>
+<div class="card"><span>アンケート回答</span><strong id="cSurveys">-</strong><small id="cSurveyRate"></small></div>
+<div class="card"><span>景品希望</span><strong id="cPrize">-</strong></div>
+<div class="card"><span>平均満足度</span><strong id="cAvg">-</strong><small>5点満点</small></div>
+<div class="card"><span>除外した参加者</span><strong id="cExcluded">-</strong></div>
+</div>
+
+<details open class="box"><summary>集計</summary>
+<div class="grid2">
+<div><h3>獲得数別の人数（どこで離脱しているか）</h3><div class="table-wrap"><table class="small-table"><thead><tr><th>獲得数</th><th>ちょうど</th><th>その数以上</th><th>割合（以上）</th></tr></thead><tbody id="funnelBody"></tbody></table></div></div>
+<div><h3>ワークショップ参加別（アンケート）</h3><div class="table-wrap"><table class="small-table"><thead><tr><th>区分</th><th>回答数</th><th>平均満足度</th><th>景品希望</th></tr></thead><tbody id="workshopBody"></tbody></table></div></div>
+</div>
+<h3>スポット別</h3><div class="table-wrap"><table><thead><tr><th>スポット</th><th>総読み込み</th><th>ユニーク参加者</th><th>再スキャン</th><th>取得者数</th><th>取得率</th></tr></thead><tbody id="spotBody"></tbody></table></div>
+<div class="grid2">
+<div><h3>日別（日本時間・新しい順）</h3><div class="table-wrap"><table class="small-table"><thead><tr><th>日付</th><th>新規参加者</th><th>読み取り</th><th>コンプリート</th><th>アンケート</th></tr></thead><tbody id="dailyBody"></tbody></table></div></div>
+<div><h3>満足度の分布</h3><div class="table-wrap"><table class="small-table"><thead><tr><th>満足度</th><th>回答数</th></tr></thead><tbody id="satBody"></tbody></table></div></div>
+</div>
+</details>
+
+<h2>参加者 <span class="count" id="participantCount"></span></h2>
+<div class="filters">
+<label>検索<input id="participantSearch" placeholder="参加者ID（部分一致）"></label>
+<label>状態<select id="participantStatus"><option value="">すべて</option><option value="done">コンプリート</option><option value="going">途中</option></select></label>
+</div>
+<div class="table-wrap"><table><thead><tr><th>参加者ID</th><th>状態</th><th>獲得数</th><th>取得ルート（順番・初回取得時刻）</th><th>最初の読み取り</th><th>最後の読み取り</th><th>読み取り（うち再）</th><th>端末</th><th>操作</th></tr></thead><tbody id="participantBody"></tbody></table></div>
+
+<details class="box" id="excludeTools"><summary>テストデータの除外（動作確認で読み取ったデータなど）</summary>
+<p class="note">除外した参加者は、集計・CSV・スプレッドシートから外れます。データは削除されないので、いつでも元に戻せます。参加者ごとの「除外」ボタンのほか、次の操作でまとめて除外できます。</p>
+<div class="filters">
+<label>この日時より前に最初の読み取りがある参加者をすべて除外<input type="datetime-local" id="excludeBefore"></label>
+<button id="excludeBeforeBtn">まとめて除外</button>
+</div>
+<p class="note">日時は、この端末の時刻（日本時間）として扱われます。本番開始の直前の時刻を指定してください。</p>
+<button id="clearExcludedBtn" class="secondary">除外をすべて解除</button>
+</details>
+
+<h2>QR読み込み履歴 <span class="count" id="scanCount"></span></h2>
+<div class="filters">
+<label>検索<input id="scanSearch" placeholder="参加者ID（部分一致）"></label>
+<label>スポット<select id="scanSpot"><option value="">すべて</option><option value="river">川の入口</option><option value="bridge">橋</option><option value="fish">魚</option><option value="island">島</option><option value="water">水辺</option><option value="goal">ゴール</option></select></label>
+<label>種別<select id="scanKind"><option value="">すべて</option><option value="first">初回取得</option><option value="again">再スキャン</option></select></label>
+<label>期間（から）<input type="date" id="scanFrom"></label>
+<label>期間（まで）<input type="date" id="scanTo"></label>
+</div>
+<div class="table-wrap"><table><thead><tr><th>読み込み日時</th><th>参加者ID</th><th>スポット</th><th>種別</th><th>端末</th></tr></thead><tbody id="scanBody"></tbody></table></div>
 <button id="moreScansBtn" class="secondary" hidden>さらに読み込む</button>
-<h2>アンケート・景品発送</h2><div class="table-wrap"><table><thead><tr><th>送信日時</th><th>参加者ID</th><th>満足度</th><th>印象に残ったスポット</th><th>自由記述</th><th>ワークショップ</th><th>景品</th><th>氏名</th><th>郵便番号</th><th>住所</th><th>電話</th></tr></thead><tbody id="surveyBody"></tbody></table></div>
+
+<h2>アンケート <span class="count" id="surveyCount"></span></h2>
+<div class="filters">
+<label>景品<select id="surveyPrize"><option value="">すべて</option><option value="yes">希望</option><option value="no">希望しない</option></select></label>
+<label>ワークショップ<select id="surveyWorkshop"><option value="">すべて</option><option value="attended">参加した</option><option value="not_attended">参加していない</option><option value="unsure">わからない／覚えていない</option><option value="none">未回答</option></select></label>
+<label>期間（から）<input type="date" id="surveyFrom"></label>
+<label>期間（まで）<input type="date" id="surveyTo"></label>
+</div>
+<div class="table-wrap"><table><thead><tr><th>回答日時</th><th>参加者ID</th><th>満足度</th><th>印象に残ったスポット</th><th>自由記述</th><th>ワークショップ</th><th>景品</th><th>発送先</th></tr></thead><tbody id="surveyBody"></tbody></table></div>
+
+<details class="box" id="shippingBox"><summary>景品発送先（個人情報）— 開くと表示されます</summary>
+<p class="note">氏名・住所・電話番号を含みます。周囲に画面が見えない状況で開いてください。</p>
+<div class="table-wrap"><table><thead><tr><th>回答日時</th><th>参加者ID</th><th>氏名</th><th>郵便番号</th><th>住所</th><th>電話番号</th><th>同意した規約の版</th></tr></thead><tbody id="shippingBody"></tbody></table></div>
+</details>
 </section></main><script src="app.js"></script></body></html>

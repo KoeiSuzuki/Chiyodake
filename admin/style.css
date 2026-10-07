@@ -1,17 +1,34 @@
 body{font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP",sans-serif;margin:0;background:#f6f7f9;color:#222}
 .container{max-width:1100px;margin:auto;padding:24px}section{background:#fff;border-radius:12px;padding:20px;margin:18px 0}
-input,button{font-size:16px;padding:10px;margin:5px;border:1px solid #ccc;border-radius:8px}button{cursor:pointer;background:#222;color:#fff}
+input,select,button{font-size:16px;padding:10px;margin:5px;border:1px solid #ccc;border-radius:8px;font-family:inherit}
+/* iOSでは選択欄が標準の見た目だと高さが潰れるため、独自の見た目にする */
+select{-webkit-appearance:none;appearance:none;min-height:40px;padding-right:34px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23666' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center}button{cursor:pointer;background:#222;color:#fff}
 button.secondary{background:#fff;color:#222}button:disabled{opacity:.6;cursor:wait}#status{color:#666;min-height:1.4em}#status.error,#loginMsg.error{color:#b42318}
-.toolbar{display:flex;gap:6px;flex-wrap:wrap}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.card{background:#f0f3f5;border-radius:10px;padding:18px}.card span{display:block;color:#666}.card strong{font-size:32px}
+.toolbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.toggle{display:flex;align-items:center;gap:6px;font-size:14px;padding:0 6px}.toggle input{margin:0;width:18px;height:18px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:12px;margin:12px 0}
+.card{background:#f0f3f5;border-radius:10px;padding:16px}.card span{display:block;color:#666;font-size:13px}.card strong{font-size:30px}.card small{display:block;color:#777;font-size:12px}
 .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}table{border-collapse:collapse;width:100%;min-width:640px;margin:10px 0}th,td{border-bottom:1px solid #ddd;text-align:left;padding:9px;vertical-align:top}th{white-space:nowrap}
+table.small-table{min-width:0}tr.total td{font-weight:700;background:#fafafa}
 .ph{display:inline-block}
 .route{margin:0;padding-left:1.4em}.route li{white-space:nowrap}.muted{color:#888}
-@media(max-width:700px){.cards{grid-template-columns:1fr}table{font-size:13px}}
-/* スマートフォンでは表を横スクロールにし、日時・IDは折り返さない。ブラウザ情報は2行までに省略（全文はPCでマウスを重ねると表示） */
-#scanBody td:nth-child(-n+4){white-space:nowrap}
-#scanBody td:last-child{max-width:320px}
-.ua{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12px;color:#666}
-#surveyBody td:first-child,#routeBody td:nth-child(4),#routeBody td:nth-child(5){white-space:nowrap}
-#surveyBody td:nth-child(5){min-width:200px}
-@media(max-width:700px){.container{padding:16px 12px}section{padding:16px 14px}.cards{grid-template-columns:repeat(3,1fr);gap:8px}.card{padding:12px}.card strong{font-size:24px}.card span{font-size:12px}}
+h2{margin:28px 0 8px}h3{font-size:15px;margin:18px 0 0}.count{font-size:14px;font-weight:400;color:#666;margin-left:6px}
+.note{font-size:13px;color:#666;line-height:1.6;margin:6px 0}
+.notice{padding:10px 14px;border-radius:8px;background:#e8f3ee;border:1px solid #b7dcc8;color:#14532d;margin:8px 0}.notice.error{background:#fdecea;border-color:#f3b8b2;color:#8a1f15}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.grid2>div{min-width:0}
+.filters{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;margin:6px 0}.filters label{display:flex;flex-direction:column;font-size:12px;color:#666}.filters input,.filters select{margin:4px 0 0;padding:8px}
+details.box{border:1px solid #e3e6ea;border-radius:10px;padding:4px 14px 10px;margin:14px 0;background:#fcfcfd}details.box>summary{cursor:pointer;font-weight:700;padding:10px 0}
+button.mini{padding:6px 10px;font-size:13px;margin:0;white-space:nowrap}
+tr.excluded td{color:#9a9a9a;background:#fafafa}.badge{display:inline-block;font-size:11px;border:1px solid #bbb;border-radius:4px;padding:0 5px;color:#777;background:#fff}
+.done{color:#14532d;background:#e8f3ee;border-radius:4px;padding:1px 6px;white-space:nowrap}
+/* スマートフォンでは表を横スクロールにし、日時・IDは折り返さない。ブラウザ情報の元の文字列は、PCでマウスを重ねると表示 */
+#scanBody td{white-space:nowrap}
+#participantBody td:nth-child(1),#participantBody td:nth-child(5),#participantBody td:nth-child(6),#participantBody td:nth-child(7),#participantBody td:nth-child(8),#surveyBody td:nth-child(-n+3),#shippingBody td:nth-child(-n+2){white-space:nowrap}
+#surveyBody td:nth-child(5){min-width:200px}#shippingBody td:nth-child(5){min-width:220px}
+@media(max-width:700px){
+ .container{padding:16px 12px}section{padding:16px 14px}
+ .cards{grid-template-columns:repeat(2,1fr);gap:8px}.card{padding:12px}.card strong{font-size:24px}
+ .grid2{grid-template-columns:minmax(0,1fr)}
+ button.mini{min-height:40px;padding:8px 12px}
+ table{font-size:13px}
+ .filters label{flex:1 1 140px}.filters input,.filters select{width:100%;min-height:40px}
+}
