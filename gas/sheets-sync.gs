@@ -3,13 +3,15 @@
  *
  * - Supabaseが正本です。このスクリプトはSupabaseから読み取るだけで、書き戻しはしません。
  * - 各シートは同期のたびに上書きされます（手で編集しても次回の同期で消えます）。
- * - Google側の認証情報は不要です（このスクリプトは自分が属するスプレッドシートに書き込みます）。
+ * - Google側の認証情報は不要です（このスクリプトは、自分が属するスプレッドシート、または SPREADSHEET_ID で指定したスプレッドシートに書き込みます）。
  * - Supabaseのservice_role key / secret key は使いません。
  *
  * スクリプトプロパティ（プロジェクトの設定 > スクリプト プロパティ）
  *   SUPABASE_URL              例: https://xxxx.supabase.co（js/config.js と同じ）
  *   SUPABASE_PUBLISHABLE_KEY  js/config.js と同じ公開キー（sb_publishable_...）
  *   SHEETS_SYNC_TOKEN         SQL Editorで select private.issue_sheets_token(); を実行して表示された値
+ *   SPREADSHEET_ID            書き込み先スプレッドシートのID。スプレッドシートの「拡張機能 > Apps Script」から作った場合は不要。
+ *                             script.google.com で単体のスクリプトとして作った場合は必須（URLの /d/ と /edit の間の文字列）。
  *   SYNC_SHIPPING             "true" のときだけ景品発送情報（個人情報）を同期します。未設定なら同期しません。
  *   SHIPPING_SPREADSHEET_ID   景品発送情報を書き込む別のスプレッドシートのID（推奨）。未設定ならこのスプレッドシート。
  */
@@ -75,9 +77,20 @@ function onOpen() {
     .addToUi();
 }
 
+// 書き込み先：スプレッドシートに紐づいたスクリプトならそのファイル、単体のスクリプトなら SPREADSHEET_ID のファイル
+function targetSpreadsheet_() {
+  const active = SpreadsheetApp.getActive();
+  if (active) return active;
+  const id = (PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID') || '').trim();
+  if (!id) {
+    throw new Error('書き込み先のスプレッドシートが分かりません。スクリプトプロパティ SPREADSHEET_ID にスプレッドシートのIDを設定してください。');
+  }
+  return SpreadsheetApp.openById(id);
+}
+
 /** 初回に1回実行：タイムゾーン設定・15分ごとの自動同期・初回同期 */
 function setup() {
-  SpreadsheetApp.getActive().setSpreadsheetTimeZone('Asia/Tokyo');
+  targetSpreadsheet_().setSpreadsheetTimeZone('Asia/Tokyo');
   stopAutoSync();
   ScriptApp.newTrigger('syncNow').timeBased().everyMinutes(15).create();
   syncNow();
@@ -92,7 +105,7 @@ function stopAutoSync() {
 function syncNow() {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(30 * 1000)) return; // 前回の同期が実行中
-  const ss = SpreadsheetApp.getActive();
+  const ss = targetSpreadsheet_();
   try {
     const config = readConfig_();
     const data = fetchExport_(config);
